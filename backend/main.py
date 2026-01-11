@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="HR AI Backend")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://sample-connection.vercel.app/"],  # Vite default
+    allow_origins=["https://sample-connection.vercel.app/"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
