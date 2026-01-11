@@ -1,23 +1,30 @@
 import { useState } from 'react'
+import axios from 'axios'
 
-const App= () =>{
+const App = () => {
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [gender, setGender] = useState('')
-  // const AppUrl = "https://sample-connection.onrender.com"
-  const handleSubmit = () => {
-    fetch("http://127.0.0.1:8000/employee", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    name: name,
-    age: parseInt(age),
-    gender: gender,
-  })
-});
+  const [status, setStatus] = useState('')
 
+  // async submit using axios
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setStatus('sending')
+    try {
+      await axios.post('http://127.0.0.1:8000/employee', {
+        name: name,
+        age: parseInt(age || '0'),
+        Gender: gender,
+      })
+      setStatus('sent')
+      setName('')
+      setAge('')
+      setGender('')
+    } catch (err) {
+      console.error(err)
+      setStatus('error')
+    }
   }
 
   return (

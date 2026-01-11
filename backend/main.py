@@ -6,8 +6,17 @@ from model import Base
 from schema import EmployeeCreate, EmployeeResponse
 from crud import create_employee, get_all_employees
 from dependencies import get_db
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(title="HR AI Backend")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite default
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Create tables in Aiven PostgreSQL
 Base.metadata.create_all(bind=engine)
