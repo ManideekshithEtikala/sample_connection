@@ -12,7 +12,7 @@ const App = () => {
     e.preventDefault()
     setStatus('sending')
     try {
-      await axios.post('http://127.0.0.1:8000/employee', {
+      await axios.post('https://sample-connection.onrender.com/employee', {
         name: name,
         age: parseInt(age || '0'),
         Gender: gender,
