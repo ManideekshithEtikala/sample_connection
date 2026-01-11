@@ -11,7 +11,9 @@ app = FastAPI(title="HR AI Backend")
 
 # Create tables in Aiven PostgreSQL
 Base.metadata.create_all(bind=engine)
-
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the HR AI Backend!"}
 @app.post("/employee", response_model=EmployeeResponse)
 def add_employee(employee: EmployeeCreate, db: Session = Depends(get_db)):
     return create_employee(db, employee)
