@@ -10,7 +10,8 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(
     DATABASE_URL,
     pool_size=10,
-    max_overflow=20
+    max_overflow=20,
+    connect_args={"sslmode": "require"}
 )
 
 SessionLocal = sessionmaker(bind=engine)

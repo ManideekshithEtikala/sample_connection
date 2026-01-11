@@ -6,7 +6,7 @@ def create_employee(db: Session, employee: EmployeeCreate):
     db_employee = Employee(
         name=employee.name,
         age=employee.age,
-        gender=employee.gender
+        Gender=employee.Gender
     )
     db.add(db_employee)
     db.commit()

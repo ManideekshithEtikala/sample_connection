@@ -6,7 +6,7 @@ const App= () =>{
   const [gender, setGender] = useState('')
   // const AppUrl = "https://sample-connection.onrender.com"
   const handleSubmit = () => {
-    fetch("https://sample-connection.onrender.com", {
+    fetch("http://127.0.0.1:8000/employee", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"

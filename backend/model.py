@@ -3,8 +3,7 @@ from database import Base
 
 class Employee(Base):
     __tablename__ = "SampleData"
-
-    id = Column(Integer, primary_key=True)
+    id= Column(Integer, primary_key=True, index=True)
     name = Column(String)
     age = Column(Integer)
     Gender = Column(String)
