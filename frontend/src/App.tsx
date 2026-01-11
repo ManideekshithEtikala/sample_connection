@@ -4,17 +4,17 @@ const App= () =>{
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [gender, setGender] = useState('')
-
+  // const AppUrl = "https://sample-connection.onrender.com"
   const handleSubmit = () => {
-    fetch("https://your-backend-url/employee", {
+    fetch("https://sample-connection.onrender.com", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
-    name: "John Doe",
-    email: "john@company.com",
-    department: "Sales"
+    name: name,
+    age: parseInt(age),
+    gender: gender,
   })
 });
 
