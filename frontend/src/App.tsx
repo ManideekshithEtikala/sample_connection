@@ -5,25 +5,24 @@ const App = () => {
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [gender, setGender] = useState('')
-  const [status, setStatus] = useState('')
 
   // async submit using axios
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStatus('sending')
+
     try {
       await axios.post('https://sample-connection.onrender.com/employee', {
         name: name,
         age: parseInt(age || '0'),
         Gender: gender,
       })
-      setStatus('sent')
+
       setName('')
       setAge('')
       setGender('')
     } catch (err) {
       console.error(err)
-      setStatus('error')
+
     }
   }
 
