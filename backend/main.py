@@ -5,10 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
-import google as genai
+from google import genai
 import time
-from google import exceptions
-ServiceUnavailable =exceptions.ServiceUnavailable
+# from google.api_core.exceptions import ServiceUnavailable
 # ================= ENV =================
 load_dotenv()
 
@@ -63,15 +62,6 @@ class AIClient:
                     contents=prompt,
                 )
                 return response.text.strip()
-
-            except ServiceUnavailable:
-                if attempt == retries - 1:
-                    raise HTTPException(
-                        status_code=503,
-                        detail="AI service is currently overloaded. Please try again in a few moments."
-                    )
-                time.sleep(delay)
-                delay *= 2  # exponential backoff
 
             except Exception as e:
                 raise HTTPException(status_code=500, detail=str(e))
@@ -156,8 +146,9 @@ Convert the following Job Description into JSON:
         jd_text = self.generate_jd_text(profile)
         jd_json = self.convert_jd_to_json(jd_text)
 
-        # Optional: log only JSON for debugging
+    # Optional: log only JSON for debugging
         print("Generated JD JSON:", jd_json)
+
         return jd_json
 
 ai_client = AIClient()
