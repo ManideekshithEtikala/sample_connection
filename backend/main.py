@@ -5,9 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from dotenv import load_dotenv
-from google import genai
+import google as genai
 import time
-from google.api_core import exceptions
+from google import exceptions
 ServiceUnavailable =exceptions.ServiceUnavailable
 # ================= ENV =================
 load_dotenv()
