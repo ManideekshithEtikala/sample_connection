@@ -7,7 +7,8 @@ from typing import Optional
 from dotenv import load_dotenv
 from google import genai
 import time
-from google.api_core.exceptions import ServiceUnavailable
+from google import api_core
+ServiceUnavailable = api_core.exceptions.ServiceUnavailable
 # ================= ENV =================
 load_dotenv()
 
