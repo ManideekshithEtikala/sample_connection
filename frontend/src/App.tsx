@@ -64,7 +64,7 @@ const App: React.FC = () => {
 
     try {
       const res = await axios.post<ApiResponse>(
-        `http://localhost:8000/agent/chat/${employeeId}`,
+        `https://sample-connection.onrender.com/agent/chat/${employeeId}`,
         { message: input }
       );
 
