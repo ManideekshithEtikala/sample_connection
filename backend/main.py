@@ -1,27 +1,31 @@
+# -----------------------------
+# SAME IMPORTS AS BEFORE
+# -----------------------------
 import os
 import json
-from fastapi import FastAPI, HTTPException
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
 from dotenv import load_dotenv
-# from google import genai
 import google.genai as genai
-import time
-# from google.api_core.exceptions import ServiceUnavailable
+from sqlalchemy.orm import Session
+
+from database import SessionLocal, engine
+from model import ChatHistory, EmployeeProfileDB, JobDescription, Base
+
 # ================= ENV =================
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise RuntimeError("GEMINI_API_KEY not found")
-
-client = genai.Client(api_key=api_key)
-
+API_KEY = os.getenv("GEMINI_API_KEY")
 MODEL_NAME = "gemini-2.5-flash"
 
+client = genai.Client(api_key=API_KEY)
+
 # ================= FASTAPI =================
-app = FastAPI(title="Professional JD Generator (Gemini)")
+app = FastAPI(title="Professional JD Generator")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,184 +34,148 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+Base.metadata.create_all(bind=engine)
+
+# ================= DB =================
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # ================= MODELS =================
-class UserInput(BaseModel):
+class ChatRequest(BaseModel):
     message: str
 
-class EmployeeProfile(BaseModel):
-    current_role: Optional[str] = None
-    department: Optional[str] = None
-    experience: Optional[int] = None
-    responsibilities: Optional[str] = None
-    tools: Optional[str] = None
-    skills: Optional[str] = None
-    leadership: Optional[str] = None
-    reporting_to: Optional[str] = None
-    work_type: Optional[str] = None
-    achievements: Optional[str] = None
-
-# ================= IN-MEMORY STORE =================
-employees: dict[str, EmployeeProfile] = {}
-
-# ================= AI CLIENT =================
+# ================= GEMINI =================
 class AIClient:
-
-    # ---- NORMAL TEXT CALL (NO JSON MODE) ----
-    def call_text_llm(self, prompt: str, retries: int = 3) -> str:
-        delay = 1  # seconds
-
-        for attempt in range(retries):
-            try:
-                response = client.models.generate_content(
-                    model=MODEL_NAME,
-                    contents=prompt,
-                )
-                return response.text.strip()
-
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=str(e))
-    # ---- JSON MODE CALL (FIX 3) ----
-    def call_json_llm(self, prompt: str) -> dict:
-        try:
-            response = client.models.generate_content(
-                model=MODEL_NAME,
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json"
-                }
-            )
-            return json.loads(response.text)
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="Invalid JSON from Gemini")
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
-    # ---- JD TEXT ----
-    def generate_jd_text(self, profile: dict) -> str:
+    def generate(self, profile: EmployeeProfileDB) -> dict:
         prompt = f"""
-You are a senior HR professional.
+Create professional ATS-friendly Job Description.
 
-Write a professional, ATS-friendly Job Description.
-Do not use bullet symbols, markdown, or special formatting.
-Use clear paragraphs and formal corporate language.
+Role: {profile.current_role}
+Department: {profile.department}
+Experience: {profile.experience}
+Responsibilities: {profile.responsibilities}
+Skills: {profile.skills}
+Tools: {profile.tools}
+Leadership: {profile.leadership}
+Reporting To: {profile.reporting_to}
+Work Type: {profile.work_type}
+Achievements: {profile.achievements}
 
-Employee Information:
-Role: {profile.get("current_role")}
-Department: {profile.get("department")}
-Experience: {profile.get("experience")} years
-Responsibilities: {profile.get("responsibilities")}
-Skills: {profile.get("skills")}
-Tools: {profile.get("tools")}
-Leadership: {profile.get("leadership")}
-Reporting To: {profile.get("reporting_to")}
-Work Type: {profile.get("work_type")}
-Achievements: {profile.get("achievements")}
-
-Structure:
-Job Title
-Job Summary
-Key Responsibilities
-Required Skills and Qualifications
-Preferred Qualifications
-Tools and Technologies
-Work Environment
-Reporting Structure
-Impact and Contributions
+Return JSON only.
 """
-        return self.call_text_llm(prompt)
-
-    # ---- JD → JSON (FIX 3) ----
-    def convert_jd_to_json(self, jd_text: str) -> dict:
-        prompt = f"""
-You are a JSON generator.
-
-Return ONLY valid JSON.
-No explanations. No markdown. No extra text.
-
-Schema:
-{{
-  "job_title": "",
-  "job_summary": "",
-  "key_responsibilities": [],
-  "required_skills": [],
-  "preferred_qualifications": [],
-  "tools_and_technologies": [],
-  "work_environment": "",
-  "reporting_structure": "",
-  "impact_and_contributions": []
-}}
-
-Convert the following Job Description into JSON:
-
-{jd_text}
-"""
-        return self.call_json_llm(prompt)
-
-    def generate_jd(self, profile: dict) -> dict:
-        jd_text = self.generate_jd_text(profile)
-        jd_json = self.convert_jd_to_json(jd_text)
-
-    # Optional: log only JSON for debugging
-        print("Generated JD JSON:", jd_json)
-
-        return jd_json
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config={"response_mime_type": "application/json"},
+        )
+        return json.loads(response.text)
 
 ai_client = AIClient()
 
-# ================= QUESTION FLOW =================
-def get_next_question(profile: EmployeeProfile):
-    exp = profile.experience or 0
+# ================= QUESTIONS =================
+FIELDS = [
+    ("current_role", "What is your current role or designation?"),
+    ("department", "Which department do you work in?"),
+    ("experience", "How many years of experience do you have?"),
+    ("responsibilities", "Describe your main responsibilities."),
+    ("tools", "Which tools or technologies do you use?"),
+    ("skills", "What skills are required for your role?"),
+    ("leadership", "Do you mentor or lead others?"),
+    ("reporting_to", "Who do you report to?"),
+    ("work_type", "Is your role remote, hybrid or onsite?"),
+    ("achievements", "What are your key achievements?")
+]
 
-    if not profile.current_role:
-        return "What is your current role or designation?"
-    if not profile.department:
-        return "Which department do you work in?"
-    if profile.experience is None:
-        return "How many years of professional experience do you have?"
-    if not profile.responsibilities:
-        return "Describe your main day-to-day responsibilities."
-    if not profile.tools:
-        return "Which tools or technologies do you use regularly?"
-    if not profile.skills:
-        return "What key skills are required for your role?"
-    if exp >= 3 and not profile.leadership:
-        return "Do you lead or mentor others?"
-    if not profile.reporting_to:
-        return "Who do you report to?"
-    if not profile.work_type:
-        return "Is your work remote, hybrid, or onsite?"
-    if not profile.achievements:
-        return "What are your key achievements or contributions?"
-    return None
+# ================= CHAT =================
+@app.post("/agent/chat/{employee_id}/{jd_session_id}")
+def chat(employee_id: str, jd_session_id: str, data: ChatRequest, db: Session = Depends(get_db)):
 
-def update_profile(profile: EmployeeProfile, answer: str):
-    for field in profile.__fields__:
-        if getattr(profile, field) in [None, ""]:
+    # Save chat
+    db.add(ChatHistory(
+    employee_id=employee_id,
+    jd_session_id=jd_session_id,  # NOW THIS WORKS
+    sender="user",
+    message=data.message
+))
+    db.commit()
+
+    # Load or create profile **per session**
+    profile = (
+        db.query(EmployeeProfileDB)
+        .filter(
+            EmployeeProfileDB.employee_id == employee_id,
+            EmployeeProfileDB.jd_session_id == jd_session_id
+        )
+        .first()
+    )
+
+    if not profile:
+        profile = EmployeeProfileDB(
+            employee_id=employee_id,
+            jd_session_id=jd_session_id
+        )
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    # Fill next empty field
+    for field, _ in FIELDS:
+        if getattr(profile, field) is None:
             if field == "experience":
-                try:
-                    setattr(profile, field, int(answer))
-                except ValueError:
-                    raise HTTPException(status_code=400, detail="Experience must be a number")
+                setattr(profile, field, int(data.message))
             else:
-                setattr(profile, field, answer)
+                setattr(profile, field, data.message)
+            db.commit()
             break
 
-# ================= API =================
-@app.post("/agent/chat/{employee_id}")
-def chat(employee_id: str, user_input: UserInput):
-    if employee_id not in employees:
-        employees[employee_id] = EmployeeProfile()
+    # Ask next question
+    for field, question in FIELDS:
+        if getattr(profile, field) is None:
+            return {
+                "type": "question",
+                "message": question
+            }
 
-    profile = employees[employee_id]
-    update_profile(profile, user_input.message)
+    # Generate JD
+    jd_json = ai_client.generate(profile)
 
-    next_q = get_next_question(profile)
-    if next_q:
-        return {"type": "question", "message": next_q}
-
-    jd_json = ai_client.generate_jd(profile.dict())
+    db.add(JobDescription(
+        employee_id=employee_id,
+        jd_session_id=jd_session_id,
+        jd_json=jd_json,
+        status="generated"
+    ))
+    db.commit()
 
     return {
         "type": "job_description",
-        "data": jd_json
+        "jd_json": jd_json
     }
+
+# ================= APPROVE =================
+@app.post("/agent/approve/{employee_id}/{jd_session_id}")
+def approve(employee_id: str, jd_session_id: str, db: Session = Depends(get_db)):
+
+    jd = (
+        db.query(JobDescription)
+        .filter(
+            JobDescription.employee_id == employee_id,
+            JobDescription.jd_session_id == jd_session_id,
+            JobDescription.status == "generated"
+        )
+        .order_by(JobDescription.created_at.desc())
+        .first()
+    )
+
+    if not jd:
+        return {"message": "No JD found"}
+
+    jd.status = "approved"
+    jd.approved_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": "JD approved successfully"}
