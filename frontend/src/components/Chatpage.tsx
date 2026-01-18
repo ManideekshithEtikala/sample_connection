@@ -65,7 +65,7 @@ const jdSessionId =
   setMessages(prev => [...prev, { sender: "user", text: input }]);
   try {
     const res = await axios.post<ApiResponse>(
-      `https://sample-connection.onrender.com/${employeeId}/${jdSessionId}`,
+      `https://sample-connection.onrender.com/agent/chat/${employeeId}/${jdSessionId}`,
       { message: input }
     );
 
@@ -93,7 +93,7 @@ const jdSessionId =
 const approveJD = async () => {
   try {
     await axios.post(
-      `https://sample-connection.onrender.com/${employeeId}/${jdSessionId}`
+      `https://sample-connection.onrender.com/agent/approve/${employeeId}/${jdSessionId}`
     );
 
     // Clear session ID so next JD starts fresh
