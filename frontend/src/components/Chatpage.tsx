@@ -30,7 +30,6 @@ export default function Chatpage() {
   const [messages, setMessages] = useState<Message[]>([
     { sender: "agent", text: "Hi! Let's build your Job Description." }
   ]);
-
   const [input, setInput] = useState("");
   const [qaList, setQaList] = useState<QA[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<string | null>(null);
@@ -54,14 +53,13 @@ export default function Chatpage() {
     })();
 
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    inputRef.current?.focus();
   }, [messages, loading]);
 
-  // ===============================
-  // SEND MESSAGE
-  // ===============================
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -77,7 +75,7 @@ export default function Chatpage() {
 
     try {
       const res = await axios.post(
-        `http://127.0.0.1:8000/agent/chat/${employeeId}/${jdSessionId}`,
+        `https://sample-connection.onrender.com/agent/chat/${employeeId}/${jdSessionId}`,
         {
           message: input,
           qa: updatedQA
@@ -86,40 +84,23 @@ export default function Chatpage() {
 
       const data = res.data;
 
-      console.log("Backend response:", data);
-
-      // ===============================
-      // NEXT QUESTION
-      // ===============================
+      // Next question
       if (data.type === "question") {
         setCurrentQuestion(data.message);
-
-        setMessages(prev => [
-          ...prev,
-          { sender: "agent", text: data.message }
-        ]);
+        setMessages(prev => [...prev, { sender: "agent", text: data.message }]);
       }
 
-      // ===============================
-      // FINAL JD
-      // ===============================
+      // Final JD
       else if (data.type === "job_description") {
         setGeneratedJD(data.jd_json);
         setCurrentQuestion(null);
-
         setMessages(prev => [
           ...prev,
-          {
-            sender: "agent",
-            text: "✅ Job Description generated. Please review."
-          },
-          {
-            sender: "jd",
-            jdJson: data.jd_json
-          }
+          { sender: "agent", text: "✅ Job Description generated. Please review." },
+          { sender: "jd", jdJson: data.jd_json }
         ]);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("API error:", err);
       setMessages(prev => [
         ...prev,
@@ -130,60 +111,49 @@ export default function Chatpage() {
     }
   };
 
-  // ===============================
-  // APPROVE JD
-  // ===============================
   const approveJD = async () => {
     if (!generatedJD) return;
 
     await axios.post(
-      `http://127.0.0.1:8000/agent/approve/${employeeId}/${jdSessionId}`,
+      `https://sample-connection.onrender.com/agent/approve/${employeeId}/${jdSessionId}`,
       { jd_json: generatedJD }
     );
 
     localStorage.setItem("jdSessionId", crypto.randomUUID());
 
-    setMessages([
-      { sender: "agent", text: "Hi! Let's build your Job Description." }
-    ]);
-
+    setMessages([{ sender: "agent", text: "Hi! Let's build your Job Description." }]);
     setQaList([]);
     setGeneratedJD(null);
     setCurrentQuestion(null);
   };
 
-  // ===============================
-  // RENDER JD
-  // ===============================
   const renderJD = (jd: JDJson) => (
-    <div style={{ background: "#fff", padding: 20, borderRadius: 8 }}>
-      <h2>{jd.job_title}</h2>
+    <div style={{ background: "#fff", padding: 15, borderRadius: 8, border: "1px solid #ddd" }}>
+      <h2 style={{ margin: "0 0 10px 0" }}>{jd.job_title}</h2>
       <p><b>Summary:</b> {jd.job_summary}</p>
 
-      <h3>Responsibilities</h3>
+      <h4>Responsibilities</h4>
       <ul>{jd.key_responsibilities.map((r, i) => <li key={i}>{r}</li>)}</ul>
 
-      <h3>Skills</h3>
+      <h4>Skills</h4>
       <ul>{jd.required_skills.map((s, i) => <li key={i}>{s}</li>)}</ul>
 
-      <h3>Tools</h3>
+      <h4>Tools</h4>
       <ul>{jd.tools_and_technologies.map((t, i) => <li key={i}>{t}</li>)}</ul>
 
-      <h3>Work Type</h3>
-      <p>{jd.work_environment}</p>
-
-      <h3>Reports To</h3>
-      <p>{jd.reporting_structure}</p>
+      <p><b>Work Type:</b> {jd.work_environment}</p>
+      <p><b>Reports To:</b> {jd.reporting_structure}</p>
 
       <button
         onClick={approveJD}
         style={{
-          marginTop: 20,
+          marginTop: 15,
           background: "green",
           color: "#fff",
           padding: "10px 20px",
           border: "none",
-          borderRadius: 6
+          borderRadius: 6,
+          cursor: "pointer"
         }}
       >
         ✅ Approve JD
@@ -191,30 +161,34 @@ export default function Chatpage() {
     </div>
   );
 
-  // ===============================
-  // UI
-  // ===============================
   return (
-    <div style={{ maxWidth: 800, margin: "auto" }}>
-      <h1>HR AI JD Builder</h1>
+    <div style={{ maxWidth: 800, margin: "20px auto", fontFamily: "Arial, sans-serif" }}>
+      <h1 style={{ textAlign: "center" }}>HR AI JD Builder</h1>
 
       <div style={{
         height: 500,
         overflowY: "auto",
         background: "#f6f6f6",
         padding: 15,
-        borderRadius: 10
+        borderRadius: 10,
+        display: "flex",
+        flexDirection: "column"
       }}>
         {messages.map((msg, i) => (
-          <div key={i} style={{ marginBottom: 12 }}>
+          <div key={i} style={{ marginBottom: 10 }}>
             {msg.sender === "jd" && msg.jdJson
               ? renderJD(msg.jdJson)
               : (
-                <div style={{ textAlign: msg.sender === "user" ? "right" : "left" }}>
+                <div style={{
+                  textAlign: msg.sender === "user" ? "right" : "left"
+                }}>
                   <span style={{
+                    display: "inline-block",
                     background: msg.sender === "user" ? "#DCF8C6" : "#EAEAEA",
                     padding: "8px 12px",
-                    borderRadius: 10
+                    borderRadius: 12,
+                    maxWidth: "70%",
+                    wordWrap: "break-word"
                   }}>
                     {msg.text}
                   </span>
@@ -224,7 +198,7 @@ export default function Chatpage() {
         ))}
 
         {loading && (
-          <div style={{ fontStyle: "italic" }}>
+          <div style={{ fontStyle: "italic", color: "#555", marginBottom: 5 }}>
             Agent is typing...
           </div>
         )}
@@ -232,30 +206,38 @@ export default function Chatpage() {
         <div ref={chatEndRef} />
       </div>
 
-      <input
-        value={input}
-        placeholder={currentQuestion || "Type your answer..."}
-        onChange={e => setInput(e.target.value)}
-        onKeyDown={e => e.key === "Enter" && sendMessage()}
-        disabled={loading}
-        style={{ width: "100%", padding: 10, marginTop: 10 }}
-      />
-
-      <button
-        onClick={sendMessage}
-        disabled={loading}
-        style={{
-          width: "100%",
-          marginTop: 6,
-          padding: 10,
-          background: "#007bff",
-          color: "#fff",
-          border: "none",
-          borderRadius: 6
-        }}
-      >
-        Send
-      </button>
+      <div style={{ display: "flex", marginTop: 10 }}>
+        <input
+          ref={inputRef}
+          value={input}
+          placeholder={currentQuestion || "Type your answer..."}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && sendMessage()}
+          disabled={loading}
+          style={{
+            flex: 1,
+            padding: 10,
+            borderRadius: 8,
+            border: "1px solid #ccc",
+            outline: "none"
+          }}
+        />
+        <button
+          onClick={sendMessage}
+          disabled={loading}
+          style={{
+            marginLeft: 5,
+            padding: "10px 15px",
+            borderRadius: 8,
+            background: "#007bff",
+            color: "#fff",
+            border: "none",
+            cursor: "pointer"
+          }}
+        >
+          Send
+        </button>
+      </div>
     </div>
   );
 }

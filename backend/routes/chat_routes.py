@@ -1,21 +1,22 @@
+import uuid
 import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
+
 from databases.dependencies import get_db
-from services.jd_service import generate_jd
 from models.model import JobDescription
 from schema.schema import ChatRequest
+from services.jd_service import generate_jd
 
 router = APIRouter(prefix="/agent")
 
-
 QUESTIONS = [
     "What is the job title?",
-    "Describe the key responsibilities?",
-    "List the required skills?",
-    "What tools or technologies are required?",
-    "What is the work environment?",
-    "Who does this role report to?"
+    "What are the key responsibilities?",
+    "What skills are mandatory?",
+    "Which tools or technologies are used?",
+    "Is this remote, hybrid, or onsite?",
+    "Who does this role report to?",
 ]
 
 
@@ -24,70 +25,50 @@ def chat(
     employee_id: str,
     jd_session_id: str,
     data: ChatRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
 
     qa_list = data.qa or []
 
-    # ======================
-    # ASK QUESTIONS FIRST
-    # ======================
+    # 🔹 Ask questions
     if len(qa_list) < len(QUESTIONS):
-        return {
-            "type": "question",
-            "message": QUESTIONS[len(qa_list)],
-            "step": len(qa_list) + 1,
-            "total": len(QUESTIONS)
-        }
+        return {"type": "question", "message": QUESTIONS[len(qa_list)]}
 
-    # ======================
-    # SAFE ANSWER PARSING
-    # ======================
-    answers = {}
+    # 🔹 Generate JD
+    jd_json = generate_jd({"qa": [qa.dict() for qa in qa_list]})
 
-    for qa in qa_list:
-        if isinstance(qa, dict):
-            q = qa.get("question")
-            a = qa.get("answer")
-            if q and a:
-                answers[q] = a
+    # 🔹 Save to database
+    jd_record = JobDescription(
+        jd_session_id=uuid.UUID(jd_session_id),
+        employee_id=uuid.UUID(employee_id),
+        jd_json=jd_json,
+        status="generated",
+    )
 
-    # ======================
-    # GENERATE JD
-    # ======================
-    jd = generate_jd({
-        "employee_id": employee_id,
-        "jd_session_id": jd_session_id,
-        "answers": answers
-    })
+    db.add(jd_record)
+    db.commit()
+    db.refresh(jd_record)
 
-    return {
-        "type": "job_description",
-        "jd_json": jd
-    }
+    return {"type": "job_description", "jd_json": jd_json}
+
 
 # ===========================
 # APPROVE JD
 # ===========================
 @router.post("/approve/{employee_id}/{jd_session_id}")
-def approve_jd(
-    employee_id: str,
-    jd_session_id: str,
-    db: Session = Depends(get_db)
-):
-    jd_record = db.query(JobDescription).filter_by(
-        employee_id=employee_id,
-        jd_session_id=jd_session_id
-    ).first()
+def approve_jd(employee_id: str, jd_session_id: str, db: Session = Depends(get_db)):
+    jd = (
+        db.query(JobDescription)
+        .filter_by(employee_id=employee_id, jd_session_id=jd_session_id)
+        .first()
+    )
 
-    if not jd_record:
+    if not jd:
         raise HTTPException(status_code=404, detail="JD not found")
 
-    jd_record.status = "approved"
-    jd_record.approved_at = datetime.datetime.utcnow()
+    jd.status = "approved"
+    jd.approved_at = datetime.datetime.utcnow()
+
     db.commit()
 
-    return {
-        "status": "success",
-        "message": "JD approved successfully"
-    }
+    return {"status": "success"}
