@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, JSON
 from datetime import datetime
-from database import Base
+from databases.database import Base
 
 class ChatHistory(Base):
     __tablename__ = "chat_history"

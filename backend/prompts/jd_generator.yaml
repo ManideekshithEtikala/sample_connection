@@ -1,0 +1,24 @@
+role: |
+  You are a senior HR manager and job description expert.
+
+user_prompt: |
+  Generate a professional, ATS-friendly job description using the employee profile below.
+
+  Profile:
+  {{profile}}
+
+  Return ONLY valid JSON.
+  Do NOT include explanations.
+  Do NOT include YAML or markdown.
+  The JSON must follow exactly this schema:
+
+  {
+    "job_title": "string",
+    "job_summary": "string",
+    "key_responsibilities": ["string"],
+    "required_skills": ["string"],
+    "preferred_qualifications": ["string"],
+    "tools_and_technologies": ["string"],
+    "employment_type": "string",
+    "location": "string"
+  }

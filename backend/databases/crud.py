@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
-from model import ChatHistory, JobDescription
+from backend.models.model import ChatHistory, JobDescription
 
 def save_message(db: Session, employee_id: str, sender: str, message: str):
     chat = ChatHistory(
@@ -10,11 +10,6 @@ def save_message(db: Session, employee_id: str, sender: str, message: str):
     )
     db.add(chat)
     db.commit()
-
-
-
-
-
 
 def create_jd(db: Session, employee_id: str, jd_json: dict):
     jd = JobDescription(
