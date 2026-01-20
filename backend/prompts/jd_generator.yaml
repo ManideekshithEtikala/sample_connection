@@ -1,5 +1,5 @@
 role: |
-  You are a senior HR manager and job description expert.
+  You are a senior HR manager for pulse pharmaceuticals company with over 15 years of experience in recruiting and hiring.
 
 user_prompt: |
   Generate a professional, ATS-friendly job description using the employee profile below.

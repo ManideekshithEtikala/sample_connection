@@ -1,22 +1,20 @@
+from typing import List, Optional, Any
 from pydantic import BaseModel
-from typing import List, Optional
-
 
 class QA(BaseModel):
-    question: str
-    answer: str
+    field: str
+    answer: Any
 
 
 class ChatRequest(BaseModel):
-    message: Optional[str] = None
-    qa: Optional[List[QA]] = []
-
+    qa: List[QA] = []
 
 class Project(BaseModel):
-    title: str
+    project_name: str
     description: str
-    technologies: List[str]
-
+    technologies_used: List[str]
+    role: str
+    duration: str
 
 class JDJson(BaseModel):
     inferred_job_title: str
@@ -32,3 +30,15 @@ class JDJson(BaseModel):
     achievements: str
     leadership: str
     projects: Optional[List[Project]] = []
+
+class JDOutput(BaseModel):
+    job_title: str
+    job_summary: str
+    key_responsibilities: List[str]
+    required_skills: List[str]
+    preferred_qualifications: List[str]
+    tools_and_technologies: List[str]
+    employment_type: str
+    location: str
+
+
